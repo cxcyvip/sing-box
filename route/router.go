@@ -26,6 +26,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -93,8 +94,9 @@ type Router struct {
 	networkMonitor                     tun.NetworkUpdateMonitor
 	interfaceMonitor                   tun.DefaultInterfaceMonitor
 	packageManager                     tun.PackageManager
-	clashServer                        adapter.ClashServer
 	processSearcher                    process.Searcher
+	clashServer                        adapter.ClashServer
+	v2rayServer                        adapter.V2RayServer
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions, inbounds []option.Inbound) (*Router, error) {
@@ -542,6 +544,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	case mux.Destination.Fqdn:
 		r.logger.InfoContext(ctx, "inbound multiplex connection")
 		return mux.NewConnection(ctx, r, r, r.logger, conn, metadata)
+	case vmess.MuxDestination.Fqdn:
+		r.logger.InfoContext(ctx, "inbound legacy multiplex connection")
+		return vmess.HandleMuxConnection(ctx, conn, adapter.NewUpstreamHandler(metadata, r.RouteConnection, r.RoutePacketConnection, r))
 	case uot.UOTMagicAddress:
 		r.logger.InfoContext(ctx, "inbound UoT connection")
 		metadata.Destination = M.Socksaddr{}
@@ -589,6 +594,11 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		trackerConn, tracker := r.clashServer.RoutedConnection(ctx, conn, metadata, matchedRule)
 		defer tracker.Leave()
 		conn = trackerConn
+	}
+	if r.v2rayServer != nil {
+		if statsService := r.v2rayServer.StatsService(); statsService != nil {
+			conn = statsService.RoutedConnection(metadata.Inbound, detour.Tag(), conn)
+		}
 	}
 	return detour.NewConnection(ctx, conn, metadata)
 }
@@ -662,6 +672,11 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
 		defer tracker.Leave()
 		conn = trackerConn
+	}
+	if r.v2rayServer != nil {
+		if statsService := r.v2rayServer.StatsService(); statsService != nil {
+			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), conn)
+		}
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
@@ -747,8 +762,16 @@ func (r *Router) ClashServer() adapter.ClashServer {
 	return r.clashServer
 }
 
-func (r *Router) SetClashServer(controller adapter.ClashServer) {
-	r.clashServer = controller
+func (r *Router) SetClashServer(server adapter.ClashServer) {
+	r.clashServer = server
+}
+
+func (r *Router) V2RayServer() adapter.V2RayServer {
+	return r.v2rayServer
+}
+
+func (r *Router) SetV2RayServer(server adapter.V2RayServer) {
+	r.v2rayServer = server
 }
 
 func hasRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {

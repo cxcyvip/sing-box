@@ -150,8 +150,12 @@ func (h *Trojan) newTransportConnection(ctx context.Context, conn net.Conn, meta
 }
 
 func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	var err error
 	if h.tlsConfig != nil && h.transport == nil {
-		conn = h.tlsConfig.Server(conn)
+		conn, err = tls.ServerHandshake(ctx, conn, h.tlsConfig)
+		if err != nil {
+			return err
+		}
 	}
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
@@ -178,7 +182,7 @@ func (h *Trojan) newConnection(ctx context.Context, conn net.Conn, metadata adap
 func (h *Trojan) fallbackConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	var fallbackAddr M.Socksaddr
 	if len(h.fallbackAddrTLSNextProto) > 0 {
-		if tlsConn, loaded := common.Cast[*tls.STDConn](conn); loaded {
+		if tlsConn, loaded := common.Cast[tls.Conn](conn); loaded {
 			connectionState := tlsConn.ConnectionState()
 			if connectionState.NegotiatedProtocol != "" {
 				if fallbackAddr, loaded = h.fallbackAddrTLSNextProto[connectionState.NegotiatedProtocol]; !loaded {
@@ -188,6 +192,9 @@ func (h *Trojan) fallbackConnection(ctx context.Context, conn net.Conn, metadata
 		}
 	}
 	if !fallbackAddr.IsValid() {
+		if !h.fallbackAddr.IsValid() {
+			return E.New("fallback disabled by default")
+		}
 		fallbackAddr = h.fallbackAddr
 	}
 	h.logger.InfoContext(ctx, "fallback connection to ", fallbackAddr)

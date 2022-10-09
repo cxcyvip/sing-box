@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/clashapi/cachefile"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/sing-box/log"
@@ -29,6 +30,10 @@ import (
 	"github.com/go-chi/render"
 )
 
+func init() {
+	experimental.RegisterClashServerConstructor(NewServer)
+}
+
 var _ adapter.ClashServer = (*Server)(nil)
 
 type Server struct {
@@ -38,12 +43,13 @@ type Server struct {
 	trafficManager *trafficontrol.Manager
 	urlTestHistory *urltest.HistoryStorage
 	tcpListener    net.Listener
+	directIO       bool
 	mode           string
 	storeSelected  bool
 	cacheFile      adapter.ClashCacheFile
 }
 
-func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (*Server, error) {
+func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
 	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
 	server := &Server{
@@ -55,6 +61,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		},
 		trafficManager: trafficManager,
 		urlTestHistory: urltest.NewHistoryStorage(),
+		directIO:       options.DirectIO,
 		mode:           strings.ToLower(options.DefaultMode),
 	}
 	if server.mode == "" {
@@ -149,7 +156,7 @@ func (s *Server) HistoryStorage() *urltest.HistoryStorage {
 }
 
 func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule) (net.Conn, adapter.Tracker) {
-	tracker := trafficontrol.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), s.router, matchedRule)
+	tracker := trafficontrol.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), s.router, matchedRule, s.directIO)
 	return tracker, tracker
 }
 
