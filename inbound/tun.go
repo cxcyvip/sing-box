@@ -12,7 +12,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -81,6 +80,8 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			Inet6Address:       common.Map(options.Inet6Address, option.ListenPrefix.Build),
 			AutoRoute:          options.AutoRoute,
 			StrictRoute:        options.StrictRoute,
+			Inet4RouteAddress:  common.Map(options.Inet4RouteAddress, option.ListenPrefix.Build),
+			Inet6RouteAddress:  common.Map(options.Inet6RouteAddress, option.ListenPrefix.Build),
 			IncludeUID:         includeUID,
 			ExcludeUID:         excludeUID,
 			IncludeAndroidUser: options.IncludeAndroidUser,
@@ -181,9 +182,7 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	metadata.InboundType = C.TypeTun
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
-	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
-	metadata.SniffOverrideDestination = t.inboundOptions.SniffOverrideDestination
-	metadata.DomainStrategy = dns.DomainStrategy(t.inboundOptions.DomainStrategy)
+	metadata.InboundOptions = t.inboundOptions
 	t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	err := t.router.RouteConnection(ctx, conn, metadata)
@@ -203,9 +202,7 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 	metadata.InboundType = C.TypeTun
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
-	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
-	metadata.SniffOverrideDestination = t.inboundOptions.SniffOverrideDestination
-	metadata.DomainStrategy = dns.DomainStrategy(t.inboundOptions.DomainStrategy)
+	metadata.InboundOptions = t.inboundOptions
 	t.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	err := t.router.RoutePacketConnection(ctx, conn, metadata)

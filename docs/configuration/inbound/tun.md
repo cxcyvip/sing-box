@@ -14,6 +14,14 @@
   "mtu": 9000,
   "auto_route": true,
   "strict_route": true,
+  "inet4_route_address": [
+    "0.0.0.0/1",
+    "128.0.0.0/1"
+  ],
+  "inet6_route_address": [
+    "::/1",
+    "8000::/1"
+  ],
   "endpoint_independent_nat": false,
   "stack": "system",
   "include_uid": [
@@ -95,9 +103,13 @@ Enforce strict routing rules when `auto_route` is enabled:
 It prevents address leaks and makes DNS hijacking work on Android and Linux with systemd-resolved, but your device will
 not be accessible by others.
 
-*In Windows*:
+#### inet4_route_address
 
-Use segmented `auto_route` routing settings, which may help if you're using a dial-up network.
+Use custom routes instead of default when `auto_route` is enabled.
+
+#### inet6_route_address
+
+Use custom routes instead of default when `auto_route` is enabled.
 
 #### endpoint_independent_nat
 

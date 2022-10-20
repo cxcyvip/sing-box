@@ -43,7 +43,7 @@ type utlsConnWrapper struct {
 }
 
 func (c *utlsConnWrapper) HandshakeContext(ctx context.Context) error {
-	return c.Conn.Handshake()
+	return c.UConn.Handshake()
 }
 
 func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
@@ -146,6 +146,8 @@ func newUTLSClient(router adapter.Router, serverAddress string, options option.O
 		id = utls.HelloAndroid_11_OkHttp
 	case "random":
 		id = utls.HelloRandomized
+	default:
+		return nil, E.New("unknown uTLS fingerprint: ", options.UTLS.Fingerprint)
 	}
 	return &utlsClientConfig{&tlsConfig, id}, nil
 }
