@@ -1,3 +1,20 @@
+#### 1.1-beta12
+
+* Fix uTLS config
+* Update quic-go to v0.30.0
+* Update cloudflare-tls to go1.18.7
+
+#### 1.1-beta11
+
+* Add option for custom wireguard reserved bytes
+* Fix shadowtls v2
+* Fix h3 dns transport
+* Fix copy pipe
+* Fix decrypt xplus packet
+* Fix v2ray api
+* Suppress no network error
+* Improve local dns transport
+
 #### 1.1-beta10
 
 * Add [sniff_timeout](/configuration/shared/listen#sniff_timeout) listen option

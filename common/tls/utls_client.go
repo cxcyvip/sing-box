@@ -3,7 +3,6 @@
 package tls
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net"
@@ -15,6 +14,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 
 	utls "github.com/refraction-networking/utls"
+	"context"
 )
 
 type utlsClientConfig struct {
@@ -35,7 +35,7 @@ func (e *utlsClientConfig) Config() (*STDConfig, error) {
 }
 
 func (e *utlsClientConfig) Client(conn net.Conn) Conn {
-	return &utlsConnWrapper{utls.UClient(conn, e.config, e.id)}
+	return &utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}
 }
 
 type utlsConnWrapper struct {
@@ -43,7 +43,7 @@ type utlsConnWrapper struct {
 }
 
 func (c *utlsConnWrapper) HandshakeContext(ctx context.Context) error {
-	return c.UConn.Handshake()
+	return c.UConn.HandshakeContext(ctx)
 }
 
 func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
@@ -140,6 +140,14 @@ func newUTLSClient(router adapter.Router, serverAddress string, options option.O
 		id = utls.HelloChrome_Auto
 	case "firefox":
 		id = utls.HelloFirefox_Auto
+	case "edge":
+		id = utls.HelloEdge_Auto
+	case "safari":
+		id = utls.HelloSafari_Auto
+	case "360":
+		id = utls.Hello360_Auto
+	case "qq":
+		id = utls.HelloQQ_Auto
 	case "ios":
 		id = utls.HelloIOS_Auto
 	case "android":
